@@ -1,0 +1,11 @@
+huggingface-hub[cli]
+pandas
+jupyterlab
+matplotlib
+transformers
+torch
+
+
+
+
+
