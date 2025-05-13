@@ -1,0 +1,31 @@
+model = "johnsnowlabs/JSL-MedLlama-3-8B-v2.0"
+
+pipeline = pipeline(
+    "text-generation",
+    model=model,
+    torch_dtype=torch.float16,
+    device_map="cuda:1",
+)
+
+# This is just mimicing the DataFrame
+messages = [
+    {
+        "role": "system",
+        "content": '\nYou are a helpful pharmaceutical assistant. Extract the total daily dosage from the following dosage instructions. Format the dosage as a json with strength and frequency fields. Explain how you calculated the daily_sumamry.\n\nHints:\n- When the number of tablets is given rather than the mass, convert the strength to mass.\n\nLimit your response to a JSON object with the following fields\n{\n\t"events": [{\n\t\t"frequency": "twice daily", # How often the drug is prescribed.\n\t\t"amount": {"unit": "tablet", "value": 0.25}, # Phyiscal amount of prescription to take.\n\t\t"strength": {"unit": "mg", "value": 20}, # Prescription strength.\n\t}],\n\t"total_amount": {"value": 0.5, "unit": "tablet"}, # Sum of all Events individual prescription amounts.\n\t"total_strength": {"value": 10, "unit": "mg"}, # Sum of all Events individual prescription strength. The total amount of drug prescribed.\n}\n',
+    },
+    {
+        "role": "user",
+        "content": "Tylenol 50mg tablets. take 1 tablet daily and 2 tablets nightly by mouth.",
+    },
+]
+
+# Creating our own simple chat template to follow the guidlines in the repo
+pipeline.tokenizer.chat_template = "{{'###Question:'}}{% if not add_generation_prompt is defined %}{% set add_generation_prompt = false %}{% endif %}{% for message in messages %}{{message['content'] + '\n'}}{% endfor %}{% if add_generation_prompt %}{{ '###Answer:' }}{% endif %}"
+prompt = pipeline.tokenizer.apply_chat_template(
+    messages, tokenize=False, add_generation_prompt=True
+)
+
+outputs = pipeline(
+    messages, max_new_tokens=8192, do_sample=True, temperature=0.9, top_k=50, top_p=0.95
+)
+print(outputs[0]["generated_text"][-1]["content"])
